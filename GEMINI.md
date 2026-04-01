@@ -1,82 +1,64 @@
-# GEMINI Project Analysis: EDU SUITE
+# Análisis del Proyecto: EL SUPERVISOR (Edu Suite)
 
-This document provides a comprehensive analysis of the EDU SUITE project, designed to serve as a persistent context for AI-assisted development.
+Este documento proporciona un resumen técnico y operativo del proyecto **EL SUPERVISOR**, diseñado para servir como contexto persistente para el desarrollo asistido por IA.
 
-## 1. Project Overview
+## 1. Descripción General del Proyecto
 
-**EDU SUITE** is a sophisticated Python-based command-line interface (CLI) tool designed to automate and streamline academic program management. It functions as an operational orchestrator, handling data processing, class auditing, AI-powered report generation, and Robotic Process Automation (RPA) for administrative tasks.
+**EL SUPERVISOR** (también conocido como **Edu Suite**) es una herramienta de interfaz de línea de comandos (CLI) desarrollada en Python, enfocada en la automatización de procesos robóticos (RPA) para la gestión académica. Su objetivo principal es eliminar la carga administrativa manual mediante la sincronización de datos y el monitoreo en tiempo real de plataformas educativas, específicamente Blackboard.
 
-The project is architected with a clear **Separation of Concerns (SoC)**, dividing functionalities into distinct, self-contained modules.
+### Tecnologías Core:
 
-### Core Technologies:
+*   **Lenguaje:** Python 3.11+ (gestionado con `uv`).
+*   **Automatización (RPA):** `Playwright` para la interacción con el navegador (Blackboard).
+*   **Interfaz de Usuario:** `Rich` para una experiencia de consola visualmente atractiva y con retroalimentación en tiempo real.
+*   **Manipulación de Datos:** `Pandas` y `PyArrow` para el procesamiento de archivos Parquet y CSV.
+*   **Configuración:** `TOML` para ajustes dinámicos y `python-dotenv` para la gestión de credenciales sensibles.
 
-*   **CLI Framework:** `Typer` and `Rich` for a visually appealing and user-friendly console experience.
-*   **Data Manipulation:** `Pandas` and `Numpy` for efficient data processing and transformation, primarily from Excel sources.
-*   **Automation (RPA):** `Playwright` is used for browser automation, specifically for interacting with the Blackboard learning platform to scrape recording data.
-*   **AI & Reporting:** `Groq` is leveraged for natural language generation to create executive summaries in weekly reports, which are then drafted into Outlook.
-*   **Configuration:** `PyYAML` and `python-dotenv` manage dynamic settings and sensitive credentials, separating configuration from code.
+## 2. Arquitectura y Estructura
 
-### Architectural Breakdown:
+El proyecto sigue una estructura modular para separar la lógica de negocio de la automatización:
 
-The project follows a modular structure:
+*   **`bot.py`:** Orquestador principal de la CLI. Define los comandos disponibles.
+*   **`src/`:**
+    *   `map.py`: Lógica para el comando `map`. Se encarga de autenticarse en Blackboard y extraer el mapeo de IDs de cursos a archivos CSV.
+    *   `bb.py`: Lógica para el comando `live`. Monitorea en tiempo real si las clases están siendo grabadas en Blackboard usando Playwright.
+*   **`config.toml`:** Centraliza las URLs, selectores CSS de la web y rutas de archivos locales.
+*   **`00_data/`:** Almacenamiento de datos de salida (ej. `mapa_ids.csv`).
+*   **`01_input/`:** Directorio para insumos y perfiles de navegador (ej. `chrome_profile`).
 
-*   **`edu.py`:** The main entry point and orchestrator of the CLI, defining all available commands.
-*   **`src/core/`:** Contains the core logic for loading configurations (`config_loader.py`), formatting data, and other foundational functions.
-*   **`src/etl/`:** Houses the Extract, Transform, Load (ETL) pipeline scripts. These scripts process source Excel files (`PANEL - DOCENTES EPEC V1.xlsx`, `PANEL DE PROGRAMACIÓN V8.xlsx`) and generate dimensional models (`dim_docentes.xlsx`, `dim_programas.xlsx`) and a fact table (`fact_programacion.xlsx`).
-*   **`src/bot/`:** Manages all RPA tasks. This includes a `scrapper.py` for collecting data from Blackboard, a `preparador.py` to set up the data for the bot, and modules for sending mass announcements (`anuncios/`).
-*   **`src/mail/`:** Handles all email-related automation. It contains modules for generating a weekly report (`reporte_semanal/`) and interfacing with Outlook (`outlook.py`).
-*   **`config/`:** All project configuration is centralized in `settings.yaml` (for paths, selectors, URLs) and `mappings.yaml` (for column name mappings), allowing for easy updates without code changes.
-*   **`00_data/`:** Serves as local storage for logs and stateful data, like recording history and entity mappings.
-*   **`01_input/` & `02_output/`:** Designated directories for raw input data and the processed output of the ETL jobs, respectively.
+## 3. Guía de Ejecución
 
-## 2. Building and Running
+El proyecto utiliza `uv` para la gestión de dependencias y ejecución.
 
-The project is a CLI application and does not require a "build" step. It is run directly using a Python interpreter.
+### Configuración Inicial:
 
-### Setup:
-
-1.  **Create a virtual environment:**
+1.  **Sincronizar entorno:**
     ```bash
-    python -m venv .venv
+    uv sync
     ```
-2.  **Activate the environment:**
-    *   **Windows:** `.venv\Scripts\activate`
-    *   **macOS/Linux:** `source .venv/bin/activate`
-3.  **Install dependencies:**
+2.  **Variables de Entorno:** Crear un archivo `.env` en la raíz con las siguientes claves:
+    *   `USER_ID_BB`: ID de usuario de Blackboard.
+    *   `BB_MAIL`: Correo institucional.
+    *   `BB_PASS`: Contraseña de Blackboard.
+
+### Comandos Clave:
+
+*   **Sincronizar IDs de Blackboard:**
     ```bash
-    pip install -r requirements.txt
+    uv run python bot.py map
     ```
+    *Genera el archivo `00_data/mapa_ids.csv` necesario para el monitoreo.*
 
-### Key Commands:
-
-The main entry point is `edu.py`. All commands are initiated via `python edu.py [subcommand]`.
-
-*   **Update the entire data model:**
+*   **Monitorear asistencia en vivo:**
     ```bash
-    python edu.py run
+    uv run python bot.py live
     ```
-*   **Generate and draft the weekly executive report in Outlook:**
-    ```bash
-    python edu.py mail sun
-    ```
-*   **Run the RPA bot to collect Blackboard recordings:**
-    ```bash
-    # Step 1: Sync Blackboard internal IDs
-    python edu.py bot map
+    *Lee la programación desde un archivo Parquet (definido en `config.toml`) y verifica el estado de las grabaciones en vivo.*
 
-    # Step 2: Run the full collection flow
-    python edu.py bot sync
-    ```
-*   **Monitor live class assistance:**
-    ```bash
-    python edu.py bot live
-    ```
+## 4. Convenciones de Desarrollo
 
-## 3. Development Conventions
-
-*   **Configuration over Code:** Business logic and environmental details (like column names, paths, selectors) are stored in YAML files (`config/`). Changes to these should be the first step when adapting to external data source changes.
-*   **Modularity:** New features should be added in their respective modules (`bot`, `etl`, `mail`, etc.) to maintain separation of concerns.
-*   **Entry Points:** The `edu.py` script is the primary orchestrator. New high-level commands should be registered here. Sub-commands should be added to the respective Typer sub-apps (`mail_app`, `bot_app`).
-*   **Data Flow:** The standard data flow is `01_input` -> `src/etl` -> `02_output`. ETL scripts are responsible for this transformation.
-*   **Environment Variables:** Sensitive information like API keys (`.env` file) is loaded via `python-dotenv`. This file should not be committed to source control.
-*   **Rich CLI Output:** The `rich` library is used extensively for formatted and user-friendly output (Panels, Tables, logging). New CLI features should adopt this for consistency.
+*   **Separación de Responsabilidades:** La lógica de RPA debe estar en módulos dentro de `src/`, manteniendo `bot.py` como un orquestador ligero.
+*   **Configuración Externa:** Nunca hardcodear selectores o URLs; deben residir en `config.toml`.
+*   **Gestión de Sesión:** El bot utiliza un perfil de Chrome persistente (`01_input/chrome_profile`) para evitar logueos constantes y manejar MFA.
+*   **Salida de Consola:** Usar las utilidades de `Rich` (`Console`, `Panel`, `Live`, `Table`) para mantener la consistencia visual de la herramienta.
+*   **Seguridad:** El archivo `.env` está estrictamente fuera del control de versiones (ignorado en `.gitignore`).

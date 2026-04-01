@@ -1,0 +1,15 @@
+[blackboard.urls]
+login = "https://upn-colaborador.blackboard.com/"
+course_outline = "https://upn.blackboard.com/ultra/courses/{id_interno}/outline"
+api_memberships = "https://upn.blackboard.com/learn/api/v1/users/{user_id}/memberships?expand=course&limit=10000"
+
+[blackboard.selectors]
+mfa_submit = "input#ContentPlaceHolder1_MFALoginControl1_RegistrationMethodView_btnSubmit"
+user_input = "input[id$='txtUserid']"
+pass_input = "input[id$='tbxPassword']"
+login_btn = "input[id$='btnSubmit']"
+
+[bot_files]
+mapa_ids = "00_data/mapa_ids.csv"
+chrome_profile = "01_input/chrome_profile"
+parquet_file = "C:/Users/Diego AB/OneDrive - EduCorpPERU/Diego/parquet/programacion.parquet"

@@ -1,27 +1,37 @@
-# Entorno virtual
+# Entorno Virtual
 .venv/
-env/
 venv/
+env/
 
-# Python cache
+# Archivos de caché de Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
 
-# Datos y Salidas (Privacidad y peso)
-00_data/
-01_input/
-02_output/
-*.xlsx
-*.csv
+# Artefactos de empaquetado y distribución
+build/
+dist/
+*.egg-info/
+*.egg
 
-# Seguridad y Credenciales (CRÍTICO)
-.env
-
-# Configuraciones locales (Rutas de OneDrive, etc.)
-config/settings.yaml
-config/mappings.yaml
-
-# Archivos de sistema
+# Archivos de sistema operativo
 .DS_Store
 Thumbs.db
+
+# Credenciales y archivos sensibles (¡NUNCA SUBIR!)
+.env
+
+# Datos generados, registros y perfiles de navegador
+/00_data/
+/01_input/
+*.log
+*.csv
+*.parquet
+*.xlsx
+
+# Excepción para mantener la estructura de carpetas
+# Si quieres que las carpetas vacías 00_data y 01_input existan en el repo,
+# descomenta las siguientes dos líneas y crea un archivo .gitkeep dentro de cada una.
+# !/00_data/.gitkeep
+# !/01_input/.gitkeep

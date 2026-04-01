@@ -1,35 +1,64 @@
 import pandas as pd
 import time
+import os
+import tomllib
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from rich.live import Live
 from rich.table import Table
+from rich.console import Console
 from dotenv import load_dotenv
-from src.core.config_loader import config, BASE_DIR
-from src.core.supervision import query_agenda_supervision 
-from src.bot.scrapper import gestionar_login_bb 
-from src.bot.ui_bot import console, log_error
+
+console = Console()
+# Ajuste de BASE_DIR: Ahora estamos en src/ (un nivel arriba respecto a src/bot/)
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+def log_error(mensaje):
+    console.print(f"   [bold magenta]│[/bold magenta] [bold magenta]❌ {mensaje}[/bold magenta]")
+
+def log_alerta(mensaje):
+    console.print(f"   [bold magenta]│[/bold magenta] [bold cyan]⚠️ {mensaje}[/bold cyan]")
+
+def log_accion(mensaje, icono="⚙️", estilo="bold white"):
+    console.print(f"   [bold magenta]│[/bold magenta] {icono} [{estilo}]{mensaje}[/{estilo}]")
+
+def gestionar_login_bb(page, user_mail, user_pass, config_dict):
+    log_accion("Verificando sesión...", icono="🔑")
+    page.goto(config_dict['blackboard']['urls']['login'], wait_until="domcontentloaded")
+    time.sleep(3)
+    if "ultra" in page.url or "stream" in page.url: return True
+    btn_sup = page.locator("text=Supervisores")
+    if btn_sup.is_visible():
+        btn_sup.click()
+        sel = config_dict['blackboard']['selectors']
+        page.locator(sel['user_input']).fill(user_mail)
+        page.locator(sel['pass_input']).fill(user_pass)
+        page.locator(sel['login_btn']).click()
+        try:
+            page.wait_for_selector(sel['mfa_submit'], state="visible", timeout=10000)
+            page.locator(sel['mfa_submit']).click()
+            log_alerta("Acepta en tu celular.")
+        except: pass
+        page.wait_for_url("**/ultra/stream", timeout=60000)
+        return True
+    return False
 
 def generar_tabla_war_room(progreso):
-    """Dibuja el dashboard en tiempo real sin tocar el Excel maestro"""
-    table = Table(title="🚀 [bold cyan]supervición diaria[/bold cyan]", border_style="bright_blue", expand=True)
-    table.add_column("Hora", justify="center", style="dim")
+    table = Table(title="🕵️ [bold cyan]SUPERVISIÓN DIARIA[/bold cyan]", border_style="magenta", expand=True)
+    table.add_column("Hora", justify="center", style="bold white")
     table.add_column("ID (NRC)", justify="center", style="cyan")
     table.add_column("Curso", style="white")
-    table.add_column("Docente", style="dim")
+    table.add_column("Docente", style="dim white")
     table.add_column("Estado de Aula", justify="center")
 
     for id_nrc, info in progreso.items():
         st = info['estado']
-        # Colores dinámicos según el hallazgo del sensor
-        color = "green" if "🟢" in st else "bold red" if "🔴" in st else "yellow" if "🔍" in st else "white"
+        color = "cyan" if "🟢" in st else "bold magenta" if "🔴" in st or "❌" in st else "white"
         table.add_row(str(info['hora']), str(id_nrc), str(info['curso'])[:40], str(info['docente'])[:30], f"[{color}]{st}[/{color}]")
     return table
 
 def verificar_grabacion_en_vivo(page):
-    """Sensor de detección: Navega hasta Class for Teams"""
     try:
-        # 1. Expandir carpeta si está cerrada
         boton_teams = page.get_by_text("Sala videoconferencias | Class for Teams").first
         if not boton_teams.is_visible():
             carpeta = page.get_by_text("MIS VIDEOCONFERENCIAS").first
@@ -41,7 +70,6 @@ def verificar_grabacion_en_vivo(page):
         if boton_teams.is_visible():
             boton_teams.click()
             
-            # 2. Localizar frame de grabaciones
             frame_teams = None
             for _ in range(15):
                 for f in page.frames:
@@ -53,7 +81,6 @@ def verificar_grabacion_en_vivo(page):
 
             if not frame_teams: return "⚠️ Error Frame"
 
-            # 3. Detectar estado 'Grabando' en la tabla
             frame_teams.get_by_text("Grabaciones").click()
             time.sleep(4) 
             
@@ -69,27 +96,31 @@ def verificar_grabacion_en_vivo(page):
         return f"❌ Error: {str(e)[:15]}"
 
 def run():
-    """Función principal que Typer llama desde edu.py"""
     load_dotenv(BASE_DIR / ".env")
+    with open(BASE_DIR / "config.toml", "rb") as f:
+        config_dict = tomllib.load(f)
     
-    # 1. Carga de datos operativos
-    df_hoy, _, _ = query_agenda_supervision()
-    PATH_MAPA = BASE_DIR / config['paths']['data'] / config['bot_files']['mapa_ids']
+    path_parquet = config_dict['bot_files']['parquet_file']
+    df_fact = pd.read_parquet(path_parquet)
+    
+    hoy = pd.Timestamp.now().normalize()
+    df_hoy = df_fact[pd.to_datetime(df_fact['fechas']).dt.normalize() == hoy].copy()
+    df_hoy = df_hoy.sort_values(by='hora_inicio')
+
+    PATH_MAPA = BASE_DIR / config_dict['bot_files']['mapa_ids']
     df_mapa = pd.read_csv(PATH_MAPA, sep=';', encoding='latin1', dtype={'ID': str})
     
-    # Cruzamos agenda con mapa de Blackboard
     df_trabajo = pd.merge(
-        df_hoy[['ID', 'HORA_INICIO', 'CURSO_NOMBRE', 'NOMBRE_COMPLETO']], 
-        df_mapa[['ID', 'ID_Interno', 'Nombre_BB']], on='ID', how='inner'
+        df_hoy[['id', 'hora_inicio', 'curso', 'docente']], 
+        df_mapa[['ID', 'ID_Interno', 'Nombre_BB']], left_on='id', right_on='ID', how='inner'
     )
 
-    progreso = {row['ID']: {'hora': row['HORA_INICIO'], 'curso': row['CURSO_NOMBRE'], 
-                'docente': row['NOMBRE_COMPLETO'], 'estado': "⏳ Pendiente"} 
+    progreso = {row['ID']: {'hora': row['hora_inicio'], 'curso': row['curso'], 
+                'docente': row['docente'], 'estado': "⏳ Pendiente"} 
                 for _, row in df_trabajo.iterrows()}
 
-    # 2. Configuración de Playwright
-    PATH_CHROME = BASE_DIR / config['paths']['input'] / "chrome_profile"
-    URL_BASE = config['blackboard']['urls']['course_outline']
+    PATH_CHROME = BASE_DIR / config_dict['bot_files']['chrome_profile']
+    URL_BASE = config_dict['blackboard']['urls']['course_outline']
 
     with Live(generar_tabla_war_room(progreso), console=console, refresh_per_second=2) as live:
         with sync_playwright() as p:
@@ -98,9 +129,7 @@ def run():
             )
             page = context.pages[0]
 
-            # Reutilizamos las credenciales del .env
-            import os
-            if not gestionar_login_bb(page, os.getenv("BB_MAIL"), os.getenv("BB_PASS")):
+            if not gestionar_login_bb(page, os.getenv("BB_MAIL"), os.getenv("BB_PASS"), config_dict):
                 log_error("Login fallido")
                 return
 
@@ -108,11 +137,9 @@ def run():
                 progreso[id_nrc]['estado'] = "🔍 Verificando..."
                 live.update(generar_tabla_war_room(progreso))
 
-                # Navegación directa al curso
                 id_interno = df_trabajo.loc[df_trabajo['ID'] == id_nrc, 'ID_Interno'].values[0]
                 page.goto(URL_BASE.format(id_interno=id_interno), wait_until="networkidle")
                 
-                # Ejecutar sensor y actualizar War Room
                 progreso[id_nrc]['estado'] = verificar_grabacion_en_vivo(page)
                 live.update(generar_tabla_war_room(progreso))
             
