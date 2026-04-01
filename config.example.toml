@@ -1,7 +1,7 @@
 [blackboard.urls]
-login = "https://upn-colaborador.blackboard.com/"
-course_outline = "https://upn.blackboard.com/ultra/courses/{id_interno}/outline"
-api_memberships = "https://upn.blackboard.com/learn/api/v1/users/{user_id}/memberships?expand=course&limit=10000"
+login = "https://__-colaborador.blackboard.com/"
+course_outline = "https://__.blackboard.com/ultra/courses/{id_interno}/outline"
+api_memberships = "https://__.blackboard.com/learn/api/v1/users/{user_id}/memberships?expand=course&limit=10000"
 
 [blackboard.selectors]
 mfa_submit = "input#ContentPlaceHolder1_MFALoginControl1_RegistrationMethodView_btnSubmit"
