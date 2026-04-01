@@ -1,11 +1,10 @@
 # Análisis del Proyecto: EL SUPERVISOR (Edu Suite)
 
-Este documento proporciona un resumen técnico y operativo del proyecto **EL SUPERVISOR**, diseñado para servir como contexto persistente para el desarrollo asistido por IA.
+Este documento proporciona un resumen técnico y operativo del proyecto **EL SUPERVISOR**, 
 
 ## 1. Descripción General del Proyecto
 
-**EL SUPERVISOR** (también conocido como **Edu Suite**) es una herramienta de interfaz de línea de comandos (CLI) desarrollada en Python, enfocada en la automatización de procesos robóticos (RPA) para la gestión académica. Su objetivo principal es eliminar la carga administrativa manual mediante la sincronización de datos y el monitoreo en tiempo real de plataformas educativas, específicamente Blackboard.
-
+**EL SUPERVISOR**  es una herramienta de interfaz de línea de comandos desarrollada en Python, enfocada en la automatización de procesos robóticos (RPA) para la gestión académica. Su objetivo principal es eliminar la carga administrativa manual mediante la sincronización de datos y el monitoreo en tiempo real de la plataforma blakcboard
 ### Tecnologías Core:
 
 *   **Lenguaje:** Python 3.11+ (gestionado con `uv`).

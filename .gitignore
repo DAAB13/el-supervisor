@@ -35,3 +35,6 @@ Thumbs.db
 # descomenta las siguientes dos lÃ­neas y crea un archivo .gitkeep dentro de cada una.
 # !/00_data/.gitkeep
 # !/01_input/.gitkeep
+
+# Archivo de configuración local (¡NUNCA SUBIR!)
+config.toml

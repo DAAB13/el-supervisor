@@ -12,4 +12,4 @@ login_btn = "input[id$='btnSubmit']"
 [bot_files]
 mapa_ids = "00_data/mapa_ids.csv"
 chrome_profile = "01_input/chrome_profile"
-parquet_file = "C:/Users/Diego AB/OneDrive - EduCorpPERU/Diego/parquet/programacion.parquet"
+parquet_file = "path/to/your/programacion.parquet"
